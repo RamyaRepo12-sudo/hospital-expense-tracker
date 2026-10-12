@@ -1,0 +1,16 @@
+# dependencies and build output
+node_modules/
+dist/
+target/
+backend/src/main/resources/static/
+# secrets: never commit these
+.env
+.env.*
+!.env.example
+# editors / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+*.archive.gz
+backup.enc

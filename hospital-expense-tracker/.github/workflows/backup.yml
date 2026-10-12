@@ -1,0 +1,39 @@
+# Weekly ENCRYPTED database backup stored as a private workflow artifact (kept 30 days).
+# Setup (repository must be PRIVATE):
+#   Settings -> Secrets and variables -> Actions -> Secrets:
+#     MONGODB_URI        your Atlas connection string
+#     BACKUP_PASSPHRASE  a long passphrase you will keep somewhere safe
+# Restore: see docs/SETUP_AND_DEPLOYMENT_GUIDE.md, Part 7.
+name: Weekly encrypted backup
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Refuse to run on a public repository
+        run: |
+          if [ "$(gh api repos/${{ github.repository }} --jq .private)" != "true" ]; then
+            echo "This repository is public: backup files would be downloadable by anyone. Make it private first."; exit 1
+          fi
+      - name: Check secrets
+        run: |
+          test -n "$MONGODB_URI" || { echo "Secret MONGODB_URI is missing"; exit 1; }
+          test -n "$BACKUP_PASSPHRASE" || { echo "Secret BACKUP_PASSPHRASE is missing"; exit 1; }
+      - name: Dump and encrypt
+        run: |
+          docker run --rm -e MONGODB_URI mongo:7 sh -c 'mongodump --uri="$MONGODB_URI" --archive --gzip' \
+            | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_PASSPHRASE -out backup.enc
+          ls -l backup.enc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hospital-backup-${{ github.run_id }}
+          path: backup.enc
+          retention-days: 30

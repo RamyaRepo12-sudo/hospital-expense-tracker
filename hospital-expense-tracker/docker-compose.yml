@@ -1,0 +1,22 @@
+# Local helpers.
+#   docker compose up -d                       -> MongoDB only (run the app with mvn spring-boot:run and npm run dev)
+#   docker compose --profile full up --build   -> MongoDB + the complete app in one container at http://localhost:8080
+services:
+  mongo:
+    image: mongo:7
+    container_name: hospital-mongo
+    ports: ["27017:27017"]
+    volumes: [mongo-data:/data/db]
+  app:
+    build: .
+    profiles: ["full"]
+    depends_on: [mongo]
+    ports: ["8080:8080"]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/hospital_expense
+      JWT_SECRET: local-development-secret-change-me-32-chars-min
+      SEED_MODE: demo
+      SEED_PASSWORD: Local-Demo-2026
+      MFA_REQUIRED_ROLES: none   # local demo only; production defaults to requiring 2FA for admins
+volumes:
+  mongo-data: {}
